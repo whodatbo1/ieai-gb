@@ -4,6 +4,11 @@ from transformer_lens import HookedTransformer
 import plotly.express as px
 import matplotlib.pyplot as plt
 import torch
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--experiment", type=str, choices=["names", "professions", "phrasing_names", "phrasing_professions", "all"], default="all", help="Which experiment to run")
+args = parser.parse_args()
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -19,39 +24,88 @@ model = HookedTransformer.from_pretrained(model_name, device=device)
 she_token = model.tokenizer.encode(' she')[0]
 he_token = model.tokenizer.encode(' he')[0]
 
-female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache = load_professions_dataset(model)
-female_names_toks, male_names_toks, gpt2_names_logits, gpt2_names_cache = load_names_dataset(model)
-
 # Names dataset
+if args.experiment in ["names", "all"]:
+    female_names_toks, male_names_toks, gpt2_names_logits, gpt2_names_cache = load_names_dataset(model)
+    print("Performing zero ablation on names dataset")
+    prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/zero_ablation_names.png")
 
-print("Performing zero ablation on names dataset")
-prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
-fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
-fig.write_image("results/zero_ablation_names.png")
+    print("Performing mean ablation on names dataset")
+    prob_change = perform_mean_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/mean_ablation_names.png")
 
-print("Performing mean ablation on names dataset")
-prob_change = perform_mean_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
-fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
-fig.write_image("results/mean_ablation_names.png")
-
-print("Performing interchange ablation on names dataset")
-prob_change = perform_interchange_ablation(all_heads, model, female_names_toks, male_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
-fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
-fig.write_image("results/interchange_ablation_names.png")
+    print("Performing interchange ablation on names dataset")
+    prob_change = perform_interchange_ablation(all_heads, model, female_names_toks, male_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/interchange_ablation_names.png")
 
 # Professions dataset
+if args.experiment in ["professions", "all"]:
+    female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache = load_professions_dataset(model)
+    print("Performing zero ablation on professions dataset")
+    prob_change = perform_zero_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/zero_ablation_stereo.png")
 
-print("Performing zero ablation on professions dataset")
-prob_change = perform_zero_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
-fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
-fig.write_image("results/zero_ablation_stereo.png")
+    print("Performing mean ablation on professions dataset")
+    prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/mean_ablation_stereo.png")
 
-print("Performing mean ablation on professions dataset")
-prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
-fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
-fig.write_image("results/mean_ablation_stereo.png")
+    print("Performing interchange ablation on professions dataset")
+    prob_change = perform_interchange_ablation(all_heads, model, female_stereo_toks, male_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/interchange_ablation_stereo.png")
 
-print("Performing interchange ablation on professions dataset")
-prob_change = perform_interchange_ablation(all_heads, model, female_stereo_toks, male_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
-fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
-fig.write_image("results/interchange_ablation_stereo.png")
+# Phrasing datasets
+if args.experiment in ["phrasing_names", "all"]:
+    rephrases = [lambda name: f"{name} is here, isn't",
+                 lambda name: f"{name} told us that",
+                 lambda name: f"I met {name} yesterday."]
+    for i, rephrase_func in enumerate(rephrases):
+        print(f"Loading names dataset with rephrase {i}")
+        female_names_toks, male_names_toks, gpt2_names_logits, gpt2_names_cache = load_names_dataset(model, sentence_structure=rephrase_func)
+        
+        print("Performing zero ablation on names dataset on rephrase", i)
+        prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/name_rephrase_{i}_zero_ablation_names.png")
+
+        print("Performing mean ablation on names dataset on rephrase", i)
+        prob_change = perform_mean_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/name_rephrase_{i}_mean_ablation_names.png")
+
+        print("Performing interchange ablation on names dataset on rephrase", i)
+        prob_change = perform_interchange_ablation(all_heads, model, female_names_toks, male_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/name_rephrase_{i}_interchange_ablation_names.png")
+
+if args.experiment in ["phrasing_professions", "all"]:
+    rephrases = [lambda name: f"The {name} is here, isn't",
+                 lambda name: f"The {name} told us that",
+                 lambda name: f"I met the {name} yesterday."]
+    for i, rephrase_func in enumerate(rephrases):
+        print(f"Loading professions dataset with rephrase {i}") 
+        female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache = load_professions_dataset(model, sentence_structure=rephrase_func)
+        
+        print("Performing zero ablation on professions dataset with rephrase", i)
+        prob_change = perform_zero_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/prof_rephrase_{i}_zero_ablation_stereo.png")
+
+        print("Performing mean ablation on professions dataset with rephrase", i)
+        prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/prof_rephrase_{i}_mean_ablation_stereo.png")
+
+        print("Performing interchange ablation on professions dataset with rephrase", i)
+        prob_change = perform_interchange_ablation(all_heads, model, female_stereo_toks, male_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/prof_rephrase_{i}_interchange_ablation_stereo.png")
+
+
+

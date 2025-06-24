@@ -4,7 +4,8 @@ from typing import Tuple
 from transformer_lens import ActivationCache
 import torch
 
-def load_professions_dataset(model: HookedTransformer) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
+def load_professions_dataset(model: HookedTransformer, 
+                             sentence_structure=lambda prof: f"The {prof} said that") -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
     # We're going to load up some examples.
     with open("professions_female_stereo.json", 'r') as f:
         female_stereo_professions = [x[0] for x in json.load(f)]
@@ -20,8 +21,8 @@ def load_professions_dataset(model: HookedTransformer) -> Tuple[torch.Tensor, to
     male_stereo_professions = [x for x, l in zip(male_stereo_professions, male_stereo_professions_lens) if l == 1]
 
     # slot them into our sentences
-    female_stereo_sentences = [f"The {profession} said that" for profession in female_stereo_professions]
-    male_stereo_sentences = [f"The {profession} said that" for profession in male_stereo_professions]
+    female_stereo_sentences = [sentence_structure(profession) for profession in female_stereo_professions]
+    male_stereo_sentences = [sentence_structure(profession) for profession in male_stereo_professions]
 
     # convert our sentences into tokens
     female_stereo_toks = model.to_tokens(female_stereo_sentences)
@@ -31,7 +32,8 @@ def load_professions_dataset(model: HookedTransformer) -> Tuple[torch.Tensor, to
 
     return female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache
 
-def load_names_dataset(model: HookedTransformer) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
+def load_names_dataset(model: HookedTransformer,
+                       sentence_structure=lambda name: f"{name} said that") -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
     with open("girl_names_2015.json", 'r') as f:
         content = json.load(f)
         female_stereo_names = [x for x in content['names']][:100]
@@ -48,8 +50,8 @@ def load_names_dataset(model: HookedTransformer) -> Tuple[torch.Tensor, torch.Te
     male_stereo_names = [x for x, l in zip(male_stereo_names, male_stereo_names_lens) if l == 1]
 
     # slot them into our sentences
-    female_stereo_sentences = [f"{name} said that" for name in female_stereo_names]
-    male_stereo_sentences = [f"{name} said that" for name in male_stereo_names]
+    female_stereo_sentences = [sentence_structure(name) for name in female_stereo_names]
+    male_stereo_sentences = [sentence_structure(name) for name in male_stereo_names]
 
     print(female_stereo_sentences[:10])
     print(male_stereo_sentences[:10])
