@@ -111,12 +111,7 @@ if args.experiment in ["phrasing_professions", "all"]:
 
         print("Performing mean ablation on professions dataset with rephrase", i)
         # male dataset is larger, so ensure equal representability
-        try:
-            # if possible, use the same male prof selection as last time
-            male_stereo_toks_weighted
-        except NameError:
-            male_stereo_toks_weighted = male_stereo_toks[torch.randperm(female_stereo_toks.shape[0])]
-
+        male_stereo_toks_weighted = male_stereo_toks[torch.randperm(female_stereo_toks.shape[0])]
         ablation_toks = torch.cat([female_stereo_toks, male_stereo_toks_weighted], dim=0)
         prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
         fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
