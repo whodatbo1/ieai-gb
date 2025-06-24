@@ -6,6 +6,11 @@ import matplotlib.pyplot as plt
 import torch
 import argparse
 
+seed = 1234
+torch.manual_seed(seed)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(seed)
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--experiment", type=str, choices=["names", "professions", "phrasing_names", "phrasing_professions", "all"], default="all", help="Which experiment to run")
 args = parser.parse_args()
@@ -33,7 +38,9 @@ if args.experiment in ["names", "all"]:
     fig.write_image("results/zero_ablation_names.png")
 
     print("Performing mean ablation on names dataset")
-    prob_change = perform_mean_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    # mean ablate by taking equally weighted dataset of male and female
+    ablation_toks = torch.cat([female_names_toks, male_names_toks], dim=0)
+    prob_change = perform_mean_ablation(all_heads, model, female_names_toks, ablation_toks, she_token, he_token, mode=AblationMode.SEPARATE)
     fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
     fig.write_image("results/mean_ablation_names.png")
 
@@ -51,7 +58,10 @@ if args.experiment in ["professions", "all"]:
     fig.write_image("results/zero_ablation_stereo.png")
 
     print("Performing mean ablation on professions dataset")
-    prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    # male dataset is larger, so ensure equal representability
+    male_stereo_toks_weighted = male_stereo_toks[torch.randperm(female_stereo_toks.shape[0])]
+    ablation_toks = torch.cat([female_stereo_toks, male_stereo_toks_weighted], dim=0)
+    prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, ablation_toks, she_token, he_token, mode=AblationMode.SEPARATE)
     fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
     fig.write_image("results/mean_ablation_stereo.png")
 
@@ -68,14 +78,16 @@ if args.experiment in ["phrasing_names", "all"]:
     for i, rephrase_func in enumerate(rephrases):
         print(f"Loading names dataset with rephrase {i}")
         female_names_toks, male_names_toks, gpt2_names_logits, gpt2_names_cache = load_names_dataset(model, sentence_structure=rephrase_func)
-        
+
         print("Performing zero ablation on names dataset on rephrase", i)
         prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
         fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
         fig.write_image(f"results/name_rephrase_{i}_zero_ablation_names.png")
 
         print("Performing mean ablation on names dataset on rephrase", i)
-        prob_change = perform_mean_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        # mean ablate by taking equally weighted dataset of male and female
+        ablation_toks = torch.cat([female_names_toks, male_names_toks], dim=0)
+        prob_change = perform_mean_ablation(all_heads, model, female_names_toks, ablation_toks, she_token, he_token, mode=AblationMode.SEPARATE)
         fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
         fig.write_image(f"results/name_rephrase_{i}_mean_ablation_names.png")
 
@@ -98,6 +110,14 @@ if args.experiment in ["phrasing_professions", "all"]:
         fig.write_image(f"results/prof_rephrase_{i}_zero_ablation_stereo.png")
 
         print("Performing mean ablation on professions dataset with rephrase", i)
+        # male dataset is larger, so ensure equal representability
+        try:
+            # if possible, use the same male prof selection as last time
+            male_stereo_toks_weighted
+        except NameError:
+            male_stereo_toks_weighted = male_stereo_toks[torch.randperm(female_stereo_toks.shape[0])]
+
+        ablation_toks = torch.cat([female_stereo_toks, male_stereo_toks_weighted], dim=0)
         prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
         fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
         fig.write_image(f"results/prof_rephrase_{i}_mean_ablation_stereo.png")

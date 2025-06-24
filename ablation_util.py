@@ -58,21 +58,25 @@ def perform_zero_ablation(heads: List[Tuple[int, int]], model: HookedTransformer
 # ------ Mean ablation ------
 # ---------------------------
 
-def make_mean_ablation_hook(head_index_to_ablate: int):
+def make_mean_ablation_hook(head_index_to_ablate: int, layer_to_ablate: int, ablation_cache: Dict[str, torch.Tensor]):
     def mean_ablation_hook(
         value: Float[torch.Tensor, "batch pos head_index d_head"],
         hook: HookPoint
     ) -> Float[torch.Tensor, "batch pos head_index d_head"]:
-        value[:, -1, head_index_to_ablate, :] = value[:, -1, head_index_to_ablate, :].mean(dim=0, keepdim=True)
+        dataset_activations = ablation_cache[f'blocks.{layer_to_ablate}.attn.hook_result']
+        value[:, -1, head_index_to_ablate, :] = dataset_activations[:, -1, head_index_to_ablate, :].mean(dim=0, keepdim=True)
         return value
     return mean_ablation_hook
 
-def perform_mean_ablation(heads: List[Tuple[int, int]], model: HookedTransformer, toks: torch.Tensor, she_token: int, he_token: int, mode: AblationMode = AblationMode.SEPARATE):
+def perform_mean_ablation(heads: List[Tuple[int, int]], model: HookedTransformer, toks: torch.Tensor, ablation_toks: torch.Tensor, she_token: int, he_token: int, mode: AblationMode = AblationMode.SEPARATE):
     original_probs = torch.softmax(model(toks, return_type="logits")[:, -1], dim=-1).mean(0)
     original_prob_diff = original_probs[she_token] - original_probs[he_token]
 
+    hook_names = [f'blocks.{layer}.attn.hook_result' for layer in range(12)]
+    _, ablation_cache = model.run_with_cache(ablation_toks, names_filter=lambda name: name in hook_names)
+
     if mode == AblationMode.ALL:
-        hooks = [(f'blocks.{layer_to_ablate}.attn.hook_result', make_mean_ablation_hook(head_index_to_ablate)) for layer_to_ablate, head_index_to_ablate in heads]  
+        hooks = [(f'blocks.{layer_to_ablate}.attn.hook_result', make_mean_ablation_hook(head_index_to_ablate, layer_to_ablate, ablation_cache)) for layer_to_ablate, head_index_to_ablate in heads]
         ablated_probs = torch.softmax(model.run_with_hooks(
             toks,
             return_type="logits",
@@ -86,7 +90,7 @@ def perform_mean_ablation(heads: List[Tuple[int, int]], model: HookedTransformer
             ablated_probs = torch.softmax(model.run_with_hooks(
                 toks,
                 return_type="logits",
-                fwd_hooks=[(f'blocks.{layer_to_ablate}.attn.hook_result', make_mean_ablation_hook(head_index_to_ablate))]
+                fwd_hooks=[(f'blocks.{layer_to_ablate}.attn.hook_result', make_mean_ablation_hook(head_index_to_ablate, layer_to_ablate, ablation_cache))]
                 )[:, -1], dim=-1).mean(0)
             prob_diffs[layer_to_ablate, head_index_to_ablate] = ablated_probs[she_token] - ablated_probs[he_token]
         return original_prob_diff - prob_diffs
