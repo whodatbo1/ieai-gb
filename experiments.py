@@ -113,7 +113,7 @@ if args.experiment in ["phrasing_professions", "all"]:
         # male dataset is larger, so ensure equal representability
         male_stereo_toks_weighted = male_stereo_toks[torch.randperm(female_stereo_toks.shape[0])]
         ablation_toks = torch.cat([female_stereo_toks, male_stereo_toks_weighted], dim=0)
-        prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        prob_change = perform_mean_ablation(all_heads, model, female_stereo_toks, ablation_toks, she_token, he_token, mode=AblationMode.SEPARATE)
         fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
         fig.write_image(f"results/prof_rephrase_{i}_mean_ablation_stereo.png")
 
