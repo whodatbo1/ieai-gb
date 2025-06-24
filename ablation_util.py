@@ -7,6 +7,7 @@ from typing import Dict
 from enum import Enum
 
 device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+print(f"{device=}")
 
 class AblationMode(Enum):
     # all heads are ablated together - a single probability diff is returned
