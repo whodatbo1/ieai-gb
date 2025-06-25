@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#SBATCH --partition=gpu_a100
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=18
+#SBATCH --gpus=1
+#SBATCH --job-name=train
+#SBATCH --ntasks=1
+#SBATCH --time=6:00:00
+#SBATCH --mem=32000M
+#SBATCH --output=train_clipping_output_%A.out
+
+module purge
+module load 2024
+module load Anaconda3/2024.06-1
+
+source activate ieai
+
+cd $HOME/$USER/ieai-gb/
+
+srun python "src/main.py" \
+  --log-level "info" \
+  --experiments "all" \
+  --datasets "names" "professions" \
+  --seed 1001

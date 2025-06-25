@@ -1,3 +1,5 @@
+import argparse
+
 import plotly.express as px
 import torch
 from transformer_lens import HookedTransformer
@@ -12,6 +14,8 @@ from utils import (
     load_names_dataset,
     load_professions_dataset,
     run_ablation,
+    set_logging_level,
+    set_seed,
 )
 
 
@@ -83,6 +87,8 @@ def get_dataset(
     model: HookedTransformer,
     num_of_entries: int | None = None,
 ) -> tuple[list[str], list[str]]:
+    LOGGER.debug(f'Loading dataset "{dataset}"...')
+
     if dataset == "professions":
         male_filepath = DATASETS_PATH / "professions_stereo_male.json"
         female_filepath = DATASETS_PATH / "professions_stereo_female.json"
@@ -104,11 +110,17 @@ def get_dataset(
     else:
         raise ValueError(f'Unkown dataset "{dataset}"')
 
+    LOGGER.debug(f'Dataset "{dataset}" loaded!')
+    LOGGER.debug(f"Number of male entries: {len(male_entries)}")
+    LOGGER.debug(f"Number of female entries: {len(female_entries)}")
+
     return male_entries, female_entries
 
 
 def tokenize_sentences_together(
-    model: HookedTransformer, female_sentences: list[str], male_sentences: list[str]
+    model: HookedTransformer,
+    female_sentences: list[str],
+    male_sentences: list[str],
 ) -> tuple[torch.Tensor, torch.Tensor]:
     all_sentences = female_sentences + male_sentences
     all_tokens = model.to_tokens(all_sentences)
@@ -120,11 +132,13 @@ def tokenize_sentences_together(
     return male_tokens, female_tokens
 
 
-def run_ablations():
-    device = get_device()
-    model_name = "gpt2-small"
-    model = HookedTransformer.from_pretrained(model_name, device=device)
-    model.cfg.use_attn_result = True
+def run_ablations(
+    model: HookedTransformer,
+    dataset: str,
+    sentence_templates: list[str],
+    num_of_entries: int | None,
+):
+    assert model.tokenizer is not None, 'Model\'s "tokenizer" cannot be None'
     she_token = model.tokenizer.encode(" she")[0]
     he_token = model.tokenizer.encode(" he")[0]
 
@@ -132,17 +146,8 @@ def run_ablations():
     n_heads = model.cfg.n_heads
     heads = [(layer, head) for layer in range(n_layers) for head in range(n_heads)]
 
-    dataset = "professions"
-    num_of_entries = None
-    male_entries, female_entries = get_dataset(dataset, model, num_of_entries)
-    sentence_templates = [
-        "The <entry> said that",
-        "Yesterday, the <entry> said that",
-        "After the meeting, the <entry> informed them that",
-        "They spoke to the <entry> and said that",
-    ]
-
     LOGGER.info(f'Evaluating using "{dataset.capitalize()}" dataset:')
+    male_entries, female_entries = get_dataset(dataset, model, num_of_entries)
 
     for index, template in enumerate(sentence_templates):
         LOGGER.info(f'Sentence template: "{template}" (Variation {index})')
@@ -194,5 +199,34 @@ def run_ablations():
         )
 
 
-if __name__ == "__main__":
-    run_ablations()
+def main(args: argparse.Namespace):
+    set_logging_level(args.log_level)
+
+    if args.seed is not None:
+        set_seed(args.seed)
+
+    device = get_device()
+    model_name = "gpt2-small"
+    model = HookedTransformer.from_pretrained(model_name, device=device)
+    model.cfg.use_attn_result = True
+
+    sentence_templates = ["The <entry> said that"]
+
+    if any(s in args.experiments for s in ["rephrases", "all"]):
+        sentence_templates += [
+            "Yesterday, the <entry> said that",
+            "After the meeting, the <entry> informed them that",
+            "They spoke to the <entry> and said that",
+        ]
+
+    if any(s in args.experiments for s in ["adjectives", "all"]):
+        sentence_templates += [
+            "The nurturing <entry> said that",
+            "The competent <entry> informed them that",
+            "They spoke to the handsome <entry> and said that",
+        ]
+
+    LOGGER.debug(f"Sentence templates: {sentence_templates}")
+
+    for dataset in args.datasets:
+        run_ablations(model, dataset, sentence_templates, args.num_of_entries)

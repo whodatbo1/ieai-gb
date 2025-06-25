@@ -78,9 +78,6 @@ def run_ablation(
         msg = '"ablation_tokens" cannot be None when type is "interchange" or "mean"'
         assert ablation_tokens is not None, msg
 
-        # layers = range(model.cfg.n_layers)
-        # hook_names = [f"blocks.{layer}.attn.hook_result" for layer in layers]
-
         hook_names = {f"blocks.{layer}.attn.hook_result" for layer, _ in heads}
         _, ablation_cache = model.run_with_cache(
             ablation_tokens, names_filter=lambda name: name in hook_names
