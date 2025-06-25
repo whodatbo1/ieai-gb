@@ -25,7 +25,7 @@ ylabel = 'layer'
 all_heads = [(layer, head) for layer in range(12) for head in range(12)]
 
 model_name = 'gpt2-small'
-model = HookedTransformer.from_pretrained(model_name, device=device)
+model = HookedTransformer.from_pretrained(model_name, device=device, default_padding_side='left')
 she_token = model.tokenizer.encode(' she')[0]
 he_token = model.tokenizer.encode(' he')[0]
 
