@@ -97,9 +97,11 @@ if args.experiment in ["phrasing_names", "all"]:
         fig.write_image(f"results/name_rephrase_{i}_interchange_ablation_names.png")
 
 if args.experiment in ["phrasing_professions", "all"]:
-    rephrases = [lambda name: f"The {name} is here, isn't",
-                 lambda name: f"The {name} told us that",
-                 lambda name: f"I met the {name} yesterday."]
+    rephrases = [lambda name, pronoun, _: f"The {name} is here, isn't",
+                 lambda name, pronoun, _: f"The {name} told us that",
+                 lambda name, pronoun, _: f"I met the {name} yesterday and",
+                 lambda name, pronoun, _: f"The {name} looked worried as {pronoun} approached us. The {name} said that",
+                 lambda name, _, adj: f"The {adj} {name} told us that"]
     for i, rephrase_func in enumerate(rephrases):
         print(f"Loading professions dataset with rephrase {i}") 
         female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache = load_professions_dataset(model, sentence_structure=rephrase_func)

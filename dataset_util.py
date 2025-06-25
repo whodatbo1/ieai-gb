@@ -16,7 +16,7 @@ def tokenize_together(model: HookedTransformer, female_sentences: List[str], mal
     return female_toks, male_toks
 
 def load_professions_dataset(model: HookedTransformer, 
-                             sentence_structure=lambda prof: f"The {prof} said that") -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
+                             sentence_structure=lambda prof, pronoun, adj: f"The {prof} said that") -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
     # We're going to load up some examples.
     with open("professions_female_stereo.json", 'r') as f:
         female_stereo_professions = [x[0] for x in json.load(f)]
@@ -32,9 +32,10 @@ def load_professions_dataset(model: HookedTransformer,
     male_stereo_professions = [x for x, l in zip(male_stereo_professions, male_stereo_professions_lens) if l == 1]
 
     # slot them into our sentences
-    female_stereo_sentences = [sentence_structure(profession) for profession in female_stereo_professions]
-    male_stereo_sentences = [sentence_structure(profession) for profession in male_stereo_professions]
+    female_stereo_sentences = [sentence_structure(profession, "he", "broad-shouldered") for profession in female_stereo_professions]
+    male_stereo_sentences = [sentence_structure(profession, "she", "nice-looking") for profession in male_stereo_professions]
 
+    print(female_stereo_sentences[:3], male_stereo_sentences[:3])
     # convert our sentences into tokens
     female_stereo_toks, male_stereo_toks = tokenize_together(model, female_stereo_sentences, male_stereo_sentences)
     model.cfg.use_attn_result = True
