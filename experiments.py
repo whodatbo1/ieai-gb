@@ -31,7 +31,7 @@ he_token = model.tokenizer.encode(' he')[0]
 
 # Names dataset
 if args.experiment in ["names", "all"]:
-    female_names_toks, male_names_toks = load_names_dataset(model)
+    female_names_toks, male_names_toks, unisex_names_toks = load_names_dataset(model)
     print("Performing zero ablation on names dataset")
     prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
     fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
@@ -48,6 +48,23 @@ if args.experiment in ["names", "all"]:
     prob_change = perform_interchange_ablation(all_heads, model, female_names_toks, male_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
     fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
     fig.write_image("results/interchange_ablation_names.png")
+
+    print("Performing zero ablation on unisex names dataset")
+    prob_change = perform_zero_ablation(all_heads, model, unisex_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/zero_ablation_unisex_names.png")
+
+    print("Performing mean ablation on unisex names dataset")
+    # mean ablate by taking equally weighted dataset of male and female
+    ablation_toks = torch.cat([female_names_toks, male_names_toks], dim=0)
+    prob_change = perform_mean_ablation(all_heads, model, unisex_names_toks, ablation_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/mean_ablation_unisex_names.png")
+
+    print("Performing interchange ablation on unisex names dataset")
+    prob_change = perform_interchange_ablation(all_heads, model, unisex_names_toks, male_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+    fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+    fig.write_image("results/interchange_ablation_unisex_names.png")
 
 # Professions dataset
 if args.experiment in ["professions", "all"]:
@@ -72,12 +89,14 @@ if args.experiment in ["professions", "all"]:
 
 # Phrasing datasets
 if args.experiment in ["phrasing_names", "all"]:
-    rephrases = [lambda name: f"{name} is here, isn't",
-                 lambda name: f"{name} told us that",
-                 lambda name: f"I met {name} yesterday."]
+    rephrases = [lambda name, _, __: f"{name} is here, isn't",
+                 lambda name, _, __: f"{name} told us that",
+                 lambda name, _, __: f"I met {name} yesterday and",
+                 lambda name, pronoun, _: f"{name} looked worried as {pronoun} approached us. {name} said that",
+                 lambda name, _, adj: f"{name} is really {adj}, isn't"]
     for i, rephrase_func in enumerate(rephrases):
         print(f"Loading names dataset with rephrase {i}")
-        female_names_toks, male_names_toks = load_names_dataset(model, sentence_structure=rephrase_func)
+        female_names_toks, male_names_toks, unisex_names_toks = load_names_dataset(model, sentence_structure=rephrase_func)
 
         print("Performing zero ablation on names dataset on rephrase", i)
         prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
@@ -95,6 +114,23 @@ if args.experiment in ["phrasing_names", "all"]:
         prob_change = perform_interchange_ablation(all_heads, model, female_names_toks, male_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
         fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
         fig.write_image(f"results/name_rephrase_{i}_interchange_ablation_names.png")
+
+        print("Performing zero ablation on unisex names dataset on rephrase", i)
+        prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/name_rephrase_{i}_zero_ablation_unisex_names.png")
+
+        print("Performing mean ablation on unisex names dataset on rephrase", i)
+        # mean ablate by taking equally weighted dataset of male and female
+        ablation_toks = torch.cat([female_names_toks, male_names_toks], dim=0)
+        prob_change = perform_mean_ablation(all_heads, model, unisex_names_toks, ablation_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/name_rephrase_{i}_mean_ablation_unisex_names.png")
+
+        print("Performing interchange ablation on unisex names dataset on rephrase", i)
+        prob_change = perform_interchange_ablation(all_heads, model, unisex_names_toks, male_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
+        fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
+        fig.write_image(f"results/name_rephrase_{i}_interchange_ablation_unisex_names.png")
 
 if args.experiment in ["phrasing_professions", "all"]:
     rephrases = [lambda name, pronoun, _: f"The {name} is here, isn't",
