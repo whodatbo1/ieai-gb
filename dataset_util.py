@@ -82,7 +82,7 @@ def load_names_dataset(model: HookedTransformer,
     print(unisex_sentences[:10])
 
     # convert our sentences into tokens
-    female_stereo_toks, male_stereo_toks, unisex_toks = tokenize_together(model, female_stereo_sentences, male_stereo_sentences)
+    female_stereo_toks, male_stereo_toks, unisex_toks = tokenize_together(model, female_stereo_sentences, male_stereo_sentences, unisex_sentences)
 
     model.cfg.use_attn_result = True
 
