@@ -16,7 +16,7 @@ def tokenize_together(model: HookedTransformer, female_sentences: List[str], mal
     return female_toks, male_toks
 
 def load_professions_dataset(model: HookedTransformer, 
-                             sentence_structure=lambda prof, pronoun, adj: f"The {prof} said that") -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
+                             sentence_structure=lambda prof, pronoun, adj: f"The {prof} said that") -> Tuple[torch.Tensor, torch.Tensor]:
     # We're going to load up some examples.
     with open("professions_female_stereo.json", 'r') as f:
         female_stereo_professions = [x[0] for x in json.load(f)]
@@ -39,12 +39,11 @@ def load_professions_dataset(model: HookedTransformer,
     # convert our sentences into tokens
     female_stereo_toks, male_stereo_toks = tokenize_together(model, female_stereo_sentences, male_stereo_sentences)
     model.cfg.use_attn_result = True
-    gpt2_logits, gpt2_cache = model.run_with_cache(female_stereo_toks)
 
-    return female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache
+    return female_stereo_toks, male_stereo_toks
 
 def load_names_dataset(model: HookedTransformer,
-                       sentence_structure=lambda name: f"{name} said that", cap=100) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, ActivationCache]:
+                       sentence_structure=lambda name: f"{name} said that", cap=100) -> Tuple[torch.Tensor, torch.Tensor]:
     with open("girl_names_2015.json", 'r') as f:
         content = json.load(f)
         female_stereo_names = [x for x in content['names']]
@@ -71,6 +70,5 @@ def load_names_dataset(model: HookedTransformer,
     female_stereo_toks, male_stereo_toks = tokenize_together(model, female_stereo_sentences, male_stereo_sentences)
 
     model.cfg.use_attn_result = True
-    gpt2_logits, gpt2_cache = model.run_with_cache(female_stereo_toks)
 
-    return female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache
+    return female_stereo_toks, male_stereo_toks

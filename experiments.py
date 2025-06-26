@@ -31,7 +31,7 @@ he_token = model.tokenizer.encode(' he')[0]
 
 # Names dataset
 if args.experiment in ["names", "all"]:
-    female_names_toks, male_names_toks, gpt2_names_logits, gpt2_names_cache = load_names_dataset(model)
+    female_names_toks, male_names_toks = load_names_dataset(model)
     print("Performing zero ablation on names dataset")
     prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
     fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
@@ -51,7 +51,7 @@ if args.experiment in ["names", "all"]:
 
 # Professions dataset
 if args.experiment in ["professions", "all"]:
-    female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache = load_professions_dataset(model)
+    female_stereo_toks, male_stereo_toks = load_professions_dataset(model)
     print("Performing zero ablation on professions dataset")
     prob_change = perform_zero_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
     fig = px.imshow(prob_change.cpu().detach().numpy(), color_continuous_scale='RdBu', zmin=-0.05, zmax=0.05, labels={'x': 'head', 'y': 'layer', 'color':'prob change'}, y=list(range(12)), x=list(range(12)), width=800, height=600, title=f'Prob Change by {xlabel} / {ylabel}')
@@ -77,7 +77,7 @@ if args.experiment in ["phrasing_names", "all"]:
                  lambda name: f"I met {name} yesterday."]
     for i, rephrase_func in enumerate(rephrases):
         print(f"Loading names dataset with rephrase {i}")
-        female_names_toks, male_names_toks, gpt2_names_logits, gpt2_names_cache = load_names_dataset(model, sentence_structure=rephrase_func)
+        female_names_toks, male_names_toks = load_names_dataset(model, sentence_structure=rephrase_func)
 
         print("Performing zero ablation on names dataset on rephrase", i)
         prob_change = perform_zero_ablation(all_heads, model, female_names_toks, she_token, he_token, mode=AblationMode.SEPARATE)
@@ -104,7 +104,7 @@ if args.experiment in ["phrasing_professions", "all"]:
                  lambda name, _, adj: f"The {adj} {name} told us that"]
     for i, rephrase_func in enumerate(rephrases):
         print(f"Loading professions dataset with rephrase {i}") 
-        female_stereo_toks, male_stereo_toks, gpt2_logits, gpt2_cache = load_professions_dataset(model, sentence_structure=rephrase_func)
+        female_stereo_toks, male_stereo_toks = load_professions_dataset(model, sentence_structure=rephrase_func)
         
         print("Performing zero ablation on professions dataset with rephrase", i)
         prob_change = perform_zero_ablation(all_heads, model, female_stereo_toks, she_token, he_token, mode=AblationMode.SEPARATE)
